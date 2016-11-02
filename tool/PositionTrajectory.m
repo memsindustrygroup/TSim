@@ -180,9 +180,10 @@ classdef PositionTrajectory < AbstractTrajectory
                 plot(traj.RAWPT);
                 str = sprintf('Raw Input Data (%s)', traj.type);
                 title(str);
+                grid on;
                 legend('X', 'Y', 'Z');
                 if (nargin>1)
-                    savePlot( dirName, 'traj_RAWPT.jpg' );
+                    savePlot( dirName, '2-0_traj_RAWPT' );
                 end
             else
                 error('You must compute your position trajectory before plotting it.');
@@ -192,10 +193,11 @@ classdef PositionTrajectory < AbstractTrajectory
             if (traj.computed)
                 figure;
                 plot(traj.P);
+                grid on;
                 title('Position Data');
                 legend('X', 'Y', 'Z');
                 if (nargin>1)
-                    savePlot( dirName, 'traj_P.jpg' );
+                    savePlot( dirName, '2-1_traj_P' );
                 end
             else
                 error('You must compute your position trajectory before plotting it.');
@@ -205,11 +207,12 @@ classdef PositionTrajectory < AbstractTrajectory
         function [traj] = plot_velocity_coords(traj, dirName)
             if (traj.computed)
                 figure;
+                grid on;
                 plot(traj.V);
                 legend('Vx=dX', 'Vy=dY', 'Vz=dZ');
                 title('Velocity Data');
                 if (nargin>1)
-                    savePlot( dirName, 'traj_V.jpg' );
+                    savePlot( dirName, '2-2_traj_V' );
                 end
             else
                 error('You must compute your position trajectory before plotting it.');
@@ -219,10 +222,11 @@ classdef PositionTrajectory < AbstractTrajectory
             if (traj.computed)
                 figure;
                 plot(traj.A);
+                grid on;
                 legend('Ax=dX^2', 'Ay=dY^2', 'Az=dZ^2');
                 title('Linear Acceleration Data (excluding gravity)');
                 if (nargin>1)
-                    savePlot( dirName, 'traj_A.jpg' );
+                    savePlot( dirName, '2-3_traj_A' );
                 end
             else
                 error('You must compute your position trajectory before plotting it.');
@@ -251,16 +255,25 @@ classdef PositionTrajectory < AbstractTrajectory
                 title('3D trajectory');
                 grid on;
                 if (nargin>1)
-                    savePlot( dirName, 'traj_3D_trajectory.jpg' );
+                    savePlot( dirName, '2-4_traj_3D_trajectory' );
                 end
 
             else
                 error('You must compute your position trajectory before plotting it.');
             end
         end
+        function [] = data_dump(traj, dirName)
+            % dirName = output directory name
+            if ((7==exist(dirName)) || mkdir(dirName))
+                var=traj.P.Data(:,1:3) ; save(fullfile(dirName,'TRUE_position.dat'), '-ascii', 'var');
+                var=traj.V.Data(:,1:3) ; save(fullfile(dirName,'TRUE_velocity.dat'), '-ascii', 'var');
+                var=traj.A.Data(:,1:3) ; save(fullfile(dirName,'TRUE_acceleration.dat'), '-ascii', 'var');
+            end % if
+        end % function
     end    % end of public method definitions
+    
     methods (Access=private)
-
+        
     end
     
 end

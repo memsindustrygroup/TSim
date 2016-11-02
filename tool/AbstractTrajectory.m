@@ -34,13 +34,7 @@ classdef AbstractTrajectory
             
             [r, c] = size(data);
             dT = (time(2)-time(1));
-            dTtwo = 2*dT;
-            for i=2:r-1
-                deltaD = data(i+1,:)-data(i-1,:);
-                newData(i,:)=deltaD/dTtwo;
-            end
-            newData(1,:) = (data(2,:)-data(1,:))/dT;
-            newData(r,:) = (data(r,:)-data(r-1,:))/dT;
+            newData = differentiate( data, dT, 5 );
             newTs = timeseries(newData, time);
             newTs.set('Name', newName);
             newTs.setinterpmethod('linear');

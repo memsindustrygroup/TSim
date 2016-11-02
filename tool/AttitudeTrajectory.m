@@ -84,9 +84,12 @@ classdef AttitudeTrajectory < AbstractTrajectory
         function [traj] = compute(traj, inc1, inc2, filter_numerator, filter_denominator)
             % Compute detailed orientation information based on supplied inputs
             % both inc1 and inc2 are used for orientation interpolation
-            % The angular rates and acceleration variables can be subject to "standard Matlab
-            % filtering" if both filter_numerator and filter_denominator
-            % are not empty (filtering is skipped if either is empty).
+            % "standard Matlab filtering" can be applied if both filter_numerator and 
+            % filter_denominator are not empty (filtering is skipped if either is empty).
+            if (nargin<3)
+                filter_numerator=[];
+                filter_denominator=[];
+            end
             if (inc2>0)
                 % We will not interpolate inputs if inc2=0
                 newTimePoints = traj.startTime:inc2:traj.endTime;
@@ -98,7 +101,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
             if (strcmp(traj.type, 'none'))
                 fprintf('There is NO ORIENTATION data to compute for this trajectory.\n');
             elseif (strcmp(traj.type, 'orientation'))
-                [traj.O] = interpolate_orientations(traj, inc1, inc2);
+                [traj.O] = interpolate_orientations(traj, inc1, inc2, filter_numerator, filter_denominator);
                 [traj.AV] = traj.differentiate_orientation();
                 [traj.AA] = traj.differentiate(traj.AV, 'Angular Acceleration');
                 traj.computed = 1;
@@ -129,6 +132,10 @@ classdef AttitudeTrajectory < AbstractTrajectory
             else
                 error('Invalid AttitudeTrajectory type found.  Results are invalid.');
             end
+            % do a bit of housekeeping on the computed quaternions
+            traj.O.Data = normalize_quaternion(traj.O.Data);
+            traj.O.Data = fix_quaternion_polarity(traj.O.Data);
+            
             traj.AA     = labelPoints(traj.RAWAT, traj.AA);
             traj.AV     = labelPoints(traj.RAWAT, traj.AV);
             traj.O      = labelPoints(traj.RAWAT, traj.O);
@@ -149,7 +156,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
             % we do not retime RAWAT data points
             if (~isempty(newTraj.O))
                 newTraj.O  = traj.changeTimeIncrement(newTraj.O, inc);
-                newTraj.O.Data = renormalize(newTraj.O.Data);
+                newTraj.O.Data = normalize_quaternion(newTraj.O.Data);
             end
             if (~isempty(newTraj.AV))
                 newTraj.AV = traj.changeTimeIncrement(newTraj.AV, inc);
@@ -182,14 +189,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
             
             [r, c] = size(data);
             dT = (time(2)-time(1));
-            dTtwo = 2*dT;
-            for i=2:r-1
-                deltaD = data(i+1,:)-data(i-1,:);
-                dq(i,:)=deltaD/dTtwo;
-            end
-            dq(1,:) = (data(2,:)-data(1,:))/dT;
-            dq(r,:) = (data(r,:)-data(r-1,:))/dT;
-            
+            dq = differentiate( data, dT, 5 );
             for i=1:r
                 R = quaternion_rates( data(i,:)', dq(i,:)' );
                 newData(i,:) = R';
@@ -212,7 +212,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
                 orientation(i,:) = quaternion_multiplication(incremental_rotation, previous_OR);
                 previous_OR(:) = orientation(i,:);
             end
-            orientation = renormalize(orientation);  % Mostly just to ensure roundoff doesn't mess us up.
+            orientation = normalize_quaternion(orientation);  % Mostly just to ensure roundoff doesn't mess us up.
             newTs = timeseries(orientation, time);
             newTs.set('Name', 'Orientation');
             newTs.DataInfo.Units = 'quaternions';
@@ -241,6 +241,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
                     z(i)=traj.O.Data(i,4)*traj.O.Data(i,1);
                 end
                 plot3(x, y, z);
+                grid on;
                 hold on;
                 
                 if(strcmp(traj.type, 'orientation'))
@@ -252,6 +253,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
                             rz(i) = traj.RAWAT.Data(i,4)*traj.RAWAT.Data(i,1);
                         end
                         plot3(rx, ry, rz, 'ro', 'MarkerFaceColor', 'r');
+                        grid on;
                     end
                 else
                     X=mean(get(gca,'Xlim'));
@@ -266,7 +268,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
                 grid on;
                 hold off;
                 if (nargin>1)
-                            savePlot( dirName, 'traj_exponential_maps.jpg' );
+                            savePlot( dirName, '1-0_traj_exponential_maps' );
                 end
             else
                 error('You must compute your attitude trajectory before plotting it.');
@@ -293,13 +295,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
                     for i=1:r
                         found=0;
                         for j=1:m
-                            % fprintf('Testing(i=%d j=%d m=%d)\n', i, j, m);
                             if (1==points_match(locs(j,:), Or(i,:)))
-                                %fprintf('Match found\n');
-                                % we've already labeled this point
-                                %fprintf('time %f is Revisited point at time %f (%f %f %f)', ...
-                                %    traj.RAWAT.Time(i), traj.RAWAT.Time(j), locs(j,1), locs(j,2), locs(j,3));
-                                %fprintf('=> (%f %f %f)\n', Or(i,1), Or(i,2), Or(i,3));
                                 addition = sprintf(', %6.3f', traj.RAWAT.Time(i));
                                 CSA{j}=strcat(CSA{j}, addition);
                                 found=1;
@@ -312,7 +308,6 @@ classdef AttitudeTrajectory < AbstractTrajectory
                             time = traj.RAWAT.Time(i);
                             s = sprintf('\\leftarrow Time=%6.3f', time );
                             CSA{m}=cellstr(s);
-                            %fprintf('Adding new location at time %6.3f at location (%f, %f, %f)\n', time, Or(i,1), Or(i,2), Or(i,3));
                         end
                     end
                     for i=1:m
@@ -332,7 +327,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
                 grid on;
                 hold off;
                 if (nargin>2)
-                            savePlot( dirName, 'traj_rotation_sequence.jpg' );
+                            savePlot( dirName, '1-1_traj_rotation_sequence' );
                 end
 
             else
@@ -343,6 +338,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
             if (traj.computed)
                 figure;
                 plot(traj.RAWAT);
+                grid on;
                 str = sprintf('Raw Input Data (%s)', traj.type);
                 title(str);
                 if (strcmp(traj.type, 'orientation'))
@@ -351,7 +347,7 @@ classdef AttitudeTrajectory < AbstractTrajectory
                     legend('X', 'Y', 'Z');
                 end
                 if (nargin>1)
-                    savePlot( dirName, 'traj_RAWAT.jpg' );
+                    savePlot( dirName, '1-2_traj_RAWAT' );
                 end
                 
             else
@@ -362,10 +358,11 @@ classdef AttitudeTrajectory < AbstractTrajectory
             if (traj.computed)
                 figure;
                 plot(traj.O);
+                grid on;
                 title('Orientation Data');
                 legend('W', 'X', 'Y', 'Z');
                 if (nargin>1)
-                    savePlot( dirName, 'traj_O.jpg' );
+                    savePlot( dirName, '1-3_traj_O' );
                 end
             else
                 error('You must compute your attitude trajectory before plotting it.');
@@ -375,10 +372,11 @@ classdef AttitudeTrajectory < AbstractTrajectory
             if (traj.computed)
                 figure;
                 plot(traj.AV);
+                grid on;
                 legend('Vx=dX', 'Vy=dY', 'Vz=dZ');
                 title('Angular Velocity Data');
                 if (nargin>1)
-                    savePlot( dirName, 'traj_AV.jpg' );
+                    savePlot( dirName, '1-4_traj_AV' );
                 end
             else
                 error('You must compute your attitude trajectory before plotting it.');
@@ -388,15 +386,43 @@ classdef AttitudeTrajectory < AbstractTrajectory
             if (traj.computed)                
                 figure;
                 plot(traj.AA);
+                grid on;
                 legend('Ax=dX^2', 'Ay=dY^2', 'Az=dZ^2');
                 title('Angular Acceleration Data');
                 if (nargin>1)
-                    savePlot( dirName, 'traj_AA.jpg' );
+                    savePlot( dirName, '1-5_traj_AA' );
                 end
             else
                 error('You must compute your attitude trajectory before plotting it.');
             end
         end
+        function [] = data_dump(traj, dirName, refFrame)
+            if (nargin<3)
+                refFrame = Env.NED;
+                fprintf('WARNING: Assuming NED Reference Frame as default for Euler Angle generation\n');
+            end
+            % dirName = output directory name
+            if ((7==exist(dirName)) || mkdir(dirName))
+                var=traj.O.Time(:)     ; save(fullfile(dirName,'TRUE_time.dat'), '-ascii', 'var');
+                var=traj.AV.Data(:,1:3); save(fullfile(dirName,'TRUE_AV.dat'), '-ascii', 'var');
+                var=traj.O.Data(:,1:4) ; save(fullfile(dirName,'TRUE_quaternion.dat'), '-ascii', 'var');
+                [r,c] = size(traj.O.Data);
+                for i=1:r
+                    q = traj.O.Data(i,:);
+                    rm  = RM_from_quaternion( q );
+                    RM(i,1:3) = rm(1,1:3);
+                    RM(i,4:6) = rm(2,1:3);
+                    RM(i,7:9) = rm(3,1:3);
+                end
+                save(fullfile(dirName,'TRUE_rotations.dat'), '-ascii', 'RM');
+
+                % CREATE EULER ANGLES FILE:
+                [EUA] = quaternions_to_eulers(traj.O.Data, refFrame);
+                save(fullfile(dirName,'TRUE_EulerAngles.dat'), '-ascii', 'EUA');
+
+            end
+        end
+
         function [] = animate_rotation(traj, inc)
             figure;
             %    1 2 3 4 5 6 7 8 9
@@ -455,22 +481,29 @@ classdef AttitudeTrajectory < AbstractTrajectory
         % end of public method definitions
     end
     methods (Access=private)      
-        function [ts] = interpolate_orientations(traj, inc1, inc2)
+        function [ts] = interpolate_orientations(traj, inc1, inc2, filter_numerator, filter_denominator)
             % we use a two phase process to interpolate between
             % orientations.  First a slerp-based algorithm is used to
             % build a 1st order estimate, then a spline interpolation is
             % used to smooth and retime the sequence.  This seems to give
             % the most "esthetically pleasing" results.
+            if (nargin<3)
+                filter_numerator=[];
+                filter_denominator=[];
+            end
             data=traj.RAWAT.Data;
             time=traj.RAWAT.Time;
             [time, data] = slerp(time, data, inc1);
             if (inc2>0)
                 newTime = min(time):inc2:max(time);
                 data = interp1(time, data, newTime, 'spline');
-                [data] = renormalize(data);
             else
                 newTime = time;
             end
+            if ~(isempty(filter_numerator) || isempty(filter_denominator))
+                data = filtfilt(filter_numerator, filter_denominator, data);
+            end
+            [data] = normalize_quaternion(data);
             ts = timeseries(data, newTime);
             ts.set('Name', 'orientation');
         end

@@ -18,7 +18,7 @@ classdef avatar
                 newV(i,:) = (scale*v + offset)';
             end
             h = patch('Vertices', newV,'Faces',a.faces,'FaceVertexCData',a.cdata, ...
-                    'FaceColor','flat','EraseMode','normal');
+                    'FaceColor','flat');
         end
     end    
 end

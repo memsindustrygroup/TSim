@@ -7,7 +7,7 @@ if (isa(dirName, 'char'))
     else
         if ((7==exist(dirName)) || mkdir(dirName))
             fn=fullfile(dirName, fileName);
-            print ('-djpeg', fn)
+            process_plot(gcf, fn);
             sts=1;
         else
             sts=0;

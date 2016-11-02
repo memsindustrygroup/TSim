@@ -44,19 +44,15 @@ classdef IdealSensorPod
                 temperature = isp.env.get_temperature(currentTime, position);
                 orientation_quaternion = isp.O.Data(i,:)';
                 RM = RM_from_quaternion(orientation_quaternion);
-                isp.A.Data(i,:)  = (RM * (isp.A.Data(i,:)'+isp.env.AccelAtRest))/Env.magG;                
+                isp.A.Data(i,:)  = (RM * (isp.env.gravity + isp.A.Data(i,:)'))/Env.magG;                
+%                isp.A.Data(i,:)  = (RM * (isp.A.Data(i,:)'+isp.env.gravity))/Env.magG;                
                 isp.TA.Data(i,:) = isp.TA.Data(i,:)/Env.magG;  % This is TRUE acceleration in global frame
                 isp.AV.Data(i,:) = (RM * isp.AV.Data(i,:)');
                 localM = isp.env.get_magnetic_vector(currentTime, position, temperature); % now in microTeslas
-                G(i,:) = RM*isp.env.AccelAtRest/(Env.magG);
+                G(i,:) = RM*isp.env.gravity/(Env.magG);
                 M(i,:) = RM*localM;
                 AP(i,1) = isp.env.get_air_pressure(currentTime, position, temperature, isp.env.altitude);
                 T(i,1) = temperature;
-            end
-            if ((isp.env.rf==Env.NED)||(isp.env.rf==Env.Win8))
-                % convert acceleration plots to gravity standard
-                isp.A.Data = -isp.A.Data;
-                isp.TA.Data = -isp.TA.Data;
             end
             isp.M = timeseries(M, time);
             isp.AP = timeseries(AP, time);
@@ -90,32 +86,13 @@ classdef IdealSensorPod
         function [] = data_dump(isp, dirName)
             % dirName = output directory name
             if ((7==exist(dirName)) || mkdir(dirName))
-                var=isp.O.Time(:)     ; save(fullfile(dirName,'TRUE_time.dat'), '-ascii', 'var');
                 var=isp.M.Data(:,1:3) ; save(fullfile(dirName,'magnetometer.dat'), '-ascii', 'var');
                 var=isp.A.Data(:,1:3) ; save(fullfile(dirName,'accelerometer.dat'), '-ascii', 'var');
                 var=isp.AV.Data(:,1:3); save(fullfile(dirName,'gyro.dat'), '-ascii', 'var');
                 var=isp.TA.Data(:,1:3) ; save(fullfile(dirName,'TRUE_accelerometer.dat'), '-ascii', 'var');
                 var=isp.AP.Data(:)    ; save(fullfile(dirName,'TRUE_air_pressure.dat'), '-ascii', 'var');
                 var=isp.T.Data(:)     ; save(fullfile(dirName,'TRUE_temperature.dat'), '-ascii', 'var');
-                var=isp.O.Data(:,1:4) ; save(fullfile(dirName,'TRUE_quaternion.dat'), '-ascii', 'var');
-                var=isp.P.Data(:,1:3) ; save(fullfile(dirName,'TRUE_position.dat'), '-ascii', 'var');
-                var=isp.V.Data(:,1:3) ; save(fullfile(dirName,'TRUE_velocity.dat'), '-ascii', 'var');
                 var=isp.G.Data(:,1:3) ; save(fullfile(dirName,'TRUE_gravity.dat'), '-ascii', 'var');
-                [r,c] = size(isp.O.Data);
-                for i=1:r
-                    q = isp.O.Data(i,:);
-                    rm  = RM_from_quaternion( q );
-                    RM(i,1:3) = rm(1,1:3);
-                    RM(i,4:6) = rm(2,1:3);
-                    RM(i,7:9) = rm(3,1:3);
-                end
-                save(fullfile(dirName,'TRUE_rotations.dat'), '-ascii', 'RM');
-                location=dbstack;
-                fn = location(2).file;
-                % save a copy of this file into the output
-                copyfile(fn, dirName);
-                load_script = strrep(mfilename('fullpath'),'IdealSensorPod', 'load_sensor_dataset.m');
-                copyfile(load_script, dirName);
             end
         end
         
@@ -138,9 +115,10 @@ classdef IdealSensorPod
             end
             figure;
             plot(isp.A);
+            grid on;
             legend('Ax=dX^2', 'Ay=dY^2', 'Az=dZ^2');
             title('Sensor Plot: Acceleration Data');
-            savePlot( dirName, 'accelerometer.jpg' );
+            savePlot( dirName, '4-0_accelerometer' );
         end
         function [] = plot_gravity(isp, dirName)
             if (nargin==1)
@@ -148,9 +126,10 @@ classdef IdealSensorPod
             end
             figure;
             plot(isp.G);
+            grid on;
             legend('Ax=dX^2', 'Ay=dY^2', 'Az=dZ^2');
             title('Sensor Plot: Acceleration due to Gravity');
-            savePlot( dirName, 'gravity.jpg' );
+            savePlot( dirName, '4-1_gravity' );
         end
         function [] = plot_angular_velocity(isp, dirName)
             if (nargin==1)
@@ -158,9 +137,10 @@ classdef IdealSensorPod
             end
             figure;
             plot(isp.AV);
+            grid on;
             legend('X', 'Y', 'Z');
             title('Sensor Plot: Angular Velocity');
-            savePlot( dirName, 'gyro.jpg' );
+            savePlot( dirName, '4-2_gyro' );
         end
         function [] = plot_magnetic_field(isp, dirName)
             if (nargin==1)
@@ -168,9 +148,10 @@ classdef IdealSensorPod
             end
             figure;
             plot(isp.M);
+            grid on;
             legend('X', 'Y', 'Z');
             title('Sensor Plot: Magnetic Field in microTeslas');
-            savePlot( dirName, 'magnetometer.jpg' );
+            savePlot( dirName, '4-3_magnetometer' );
         end
         function [] = plot_temperature(isp, dirName)
             if (nargin==1)
@@ -178,8 +159,9 @@ classdef IdealSensorPod
             end
             figure;
             plot(isp.T);
+            grid on;
             title('Sensor Plot: Temperature in C');
-            savePlot( dirName, 'temperature.jpg' );
+            savePlot( dirName, '4-4_temperature' );
         end
         function [] = plot_air_pressure(isp, dirName)
             if (nargin==1)
@@ -187,8 +169,9 @@ classdef IdealSensorPod
             end
             figure;
             plot(isp.AP);
+            grid on;
             title('Sensor Plot: Air Pressure in Pascals');
-            savePlot( dirName, 'air_pressure.jpg' );
+            savePlot( dirName, '4-5_air_pressure' );
         end
 
     end

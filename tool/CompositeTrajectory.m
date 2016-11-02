@@ -94,7 +94,7 @@ classdef CompositeTrajectory < PositionTrajectory  & AttitudeTrajectory
                 line(x,y,z,'Color', 'm');
             end
             if (nargin==2)
-                savePlot( dirName, 'traj_3D_trajectory_and_orientation.jpg' );
+                savePlot( dirName, '5-0_traj_3D_trajectory_and_orientation' );
             end
             hold off;
             axis auto;
@@ -202,7 +202,17 @@ classdef CompositeTrajectory < PositionTrajectory  & AttitudeTrajectory
                 {@rerun_callback, traj, f, h1, sf, inc, mn, mx, dirName});
             set([f sb],'Units','normalized');
             
-        end   
+        end % function
+        function [] = data_dump(traj, dirName, refFrame)
+            % dirName = output directory name
+            if (nargin<3)
+                refFrame = Env.NED;
+                fprintf('WARNING: Assuming NED Reference Frame as default for Euler Angle generation\n');
+            end
+            traj.data_dump@PositionTrajectory(dirName);
+            traj.data_dump@AttitudeTrajectory(dirName, refFrame);
+        end
+
     end
     
 end

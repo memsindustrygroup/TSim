@@ -1,4 +1,4 @@
-% Copyright (c) 2012, Freescale Semiconductor
+% Copyright (c) 2012-2015, Freescale Semiconductor
 
 path(path, '../tool');
 close all;
@@ -54,7 +54,6 @@ t = CompositeTrajectory('Traj1');
 t = t.set_av('linear', Atime, Adata);
 t = t.set_position('spline', Ptime, Pdata );
 t = t.compute(0.01, 0.005, N, D);
-%t.plot_all([1;1;1]);
+t.plot_all([1;1;1]);
 
 t.animate(5, 'animation_example1');
-%t.animate(5);

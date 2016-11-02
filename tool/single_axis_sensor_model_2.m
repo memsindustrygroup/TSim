@@ -7,6 +7,7 @@ classdef single_axis_sensor_model_2
     % these equations over that suggested by IEEE 1293-1998 for accelerometers.
     
     properties (SetAccess = 'public')
+        type = '';      % string identifier for this sensor type
         range = 2;      % +/- sensor range, in whatever units apply
         NB = 12;        % Number of bits resolution for the sensor
         ND = 0.0;       % Noise density in: micro-gs/root hertz
@@ -37,10 +38,11 @@ classdef single_axis_sensor_model_2
         resolution= 4/2^12;
     end  
     methods
-        function s = single_axis_sensor_model_2(range, NB, Ts)
+        function s = single_axis_sensor_model_2(type, range, NB, Ts)
             % range = upper edge of input range (ex: "2" for +/-2 g)
             % NB = number of bits resolution
             if nargin > 0
+                s.type   = type;
                 s.range  = range;
                 s.NB     = NB;
                 s.Fs     = 1/Ts;
