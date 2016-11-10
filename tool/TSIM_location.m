@@ -1,3 +1,8 @@
+% © 2012-2016 NXP Semiconductor N.V..  All rights reserved.
+% SPDX-License-Identifier: BSD-3-Clause
+% The BSD 3-clause license for this file can be found in the license.pdf file included with this 
+% distribution or at https://spdx.org/licenses/BSD-3-Clause.html
+
 function [ dirName ] = TSIM_location(  )
 % Return the value of the TSIM_DIR environmental variable.
 % also, check that it exists.

@@ -1,3 +1,8 @@
+% © 2016 NXP Semiconductor N.V..  All rights reserved.
+% SPDX-License-Identifier: BSD-3-Clause
+% The BSD 3-clause license for this file can be found in the license.pdf file included with this 
+% distribution or at https://spdx.org/licenses/BSD-3-Clause.html
+
 function [ dX ] = differentiate( X, dT, option )
 % X = column array to be differentiated
 % option = 3 or 5
